@@ -90,9 +90,17 @@ resolve_config(CommandLineArgs const & args)
         config.max_tokens = *args.max_tokens;
     } else if (auto env = get_env("MAX_TOKENS")) {
         std::uint32_t val = 0;
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunsafe-buffer-usage"
+#endif
         auto [ptr, ec] =
             std::from_chars(env->data(), env->data() + env->size(), val);
-        if (ec != std::errc{} or ptr != env->data() + env->size()) {
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+        auto parsed_len = static_cast<std::size_t>(ptr - env->data());
+        if (ec != std::errc{} or parsed_len != env->size()) {
             return make_error("Invalid MAX_TOKENS value: '{}'", *env);
         }
         config.max_tokens = MaxTokens{val};

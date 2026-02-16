@@ -7,6 +7,7 @@
 #include "wjh/chat/CommandLine.hpp"
 
 #include <charconv>
+#include "wjh/chat/json_convert.hpp"
 
 namespace wjh::chat {
 
@@ -52,9 +53,17 @@ parse_args(std::span<char const * const> args)
             ++i;
             std::string_view val{args[i]};
             std::uint32_t tokens = 0;
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunsafe-buffer-usage"
+#endif
             auto [ptr, ec] =
                 std::from_chars(val.data(), val.data() + val.size(), tokens);
-            if (ec != std::errc{} or ptr != val.data() + val.size()) {
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+            auto parsed_len = static_cast<std::size_t>(ptr - val.data());
+            if (ec != std::errc{} or parsed_len != val.size()) {
                 return make_error("Invalid number for --max-tokens: '{}'", val);
             }
             result.max_tokens = MaxTokens{tokens};
@@ -92,7 +101,7 @@ REPL commands:
   /clear                      Clear conversation history
   /help                       Show REPL commands
 )";
-    return HelpText{std::format(fmt, program_name)};
+    return HelpText{std::format(fmt, atlas::undress(program_name))};
 }
 
 } // namespace wjh::chat
